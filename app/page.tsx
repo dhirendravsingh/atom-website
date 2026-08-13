@@ -247,8 +247,6 @@ export default function Home() {
 
     const onPointerMove = (event: PointerEvent) => {
       if (!root) return;
-      root.style.setProperty("--pointer-x", `${event.clientX}px`);
-      root.style.setProperty("--pointer-y", `${event.clientY}px`);
       root.style.setProperty("--tilt-x", `${(event.clientX / window.innerWidth - 0.5) * 10}deg`);
       root.style.setProperty("--tilt-y", `${(event.clientY / window.innerHeight - 0.5) * -7}deg`);
     };
@@ -312,7 +310,6 @@ export default function Home() {
   return (
     <main ref={pageRef} className={`site ${loaded ? "is-loaded" : "is-loading"}`}>
       <a className="skip-link" href="#main-content">Skip to content</a>
-      <div className="cursor-aura" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
       <div className="progress-line" aria-hidden="true" />
 
@@ -448,7 +445,6 @@ export default function Home() {
             <div className="memory-packet packet-two"><small>02</small><strong>INTENT</strong><span>Time understood</span></div>
             <div className="memory-packet packet-three"><small>03</small><strong>ALARM</strong><span>Android delivers</span></div>
           </div>
-          <div className="tunnel-progress"><span>THOUGHT</span><i /><span>REMINDER</span></div>
         </div>
       </section>
 
