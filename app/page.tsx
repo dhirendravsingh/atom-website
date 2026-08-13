@@ -298,8 +298,6 @@ export default function Home() {
     const y = (event.clientY - bounds.top) / bounds.height - 0.5;
     card.style.setProperty("--card-rx", `${y * -5}deg`);
     card.style.setProperty("--card-ry", `${x * 6}deg`);
-    card.style.setProperty("--card-x", `${(x + 0.5) * 100}%`);
-    card.style.setProperty("--card-y", `${(y + 0.5) * 100}%`);
   };
 
   const resetCard = (event: ReactPointerEvent<HTMLElement>) => {

@@ -396,9 +396,7 @@
   .parse-foot i { background: #3b463f; flex: 1; height: 1px; }
   .parse-foot b { align-items: center; background: var(--mint); border-radius: 50%; color: var(--ink); display: flex; height: 19px; justify-content: center; width: 19px; }
 
-  .motion-card { --card-rx: 0deg; --card-ry: 0deg; --card-x: 50%; --card-y: 50%; transform: perspective(1200px) rotateX(var(--card-rx)) rotateY(var(--card-ry)); transform-style: preserve-3d; transition: transform .22s ease-out, border-color .35s ease; will-change: transform; }
-  .motion-card::before { background: radial-gradient(420px circle at var(--card-x) var(--card-y), rgba(105,213,173,.12), transparent 55%); content: ""; inset: 0; opacity: 0; pointer-events: none; position: absolute; transition: opacity .35s ease; z-index: 0; }
-  .motion-card:hover::before { opacity: 1; }
+  .motion-card { --card-rx: 0deg; --card-ry: 0deg; transform: perspective(1200px) rotateX(var(--card-rx)) rotateY(var(--card-ry)); transform-style: preserve-3d; transition: transform .22s ease-out, border-color .35s ease; will-change: transform; }
   .motion-card > * { position: relative; transform: translateZ(18px); z-index: 1; }
 
   .memory-tunnel { background: #050806; height: 250vh; position: relative; }
