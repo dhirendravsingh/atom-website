@@ -722,5 +722,5 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
 }
 
 export default function Home() {
-  return <MarketingSite />;
+  return <MarketingSite prototypeTwo />;
 }
