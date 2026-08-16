@@ -1063,16 +1063,26 @@ export default function SplashCursor({
 
     function splatPointer(pointer: Pointer) {
       const touchVerticalSwipe = pointer.id >= 0 && Math.abs(pointer.deltaY) > Math.abs(pointer.deltaX);
-      const verticalForce = touchVerticalSwipe ? 1.65 : 1;
-      const density = touchVerticalSwipe ? 1.35 : 1;
       const dx = pointer.deltaX * config.SPLAT_FORCE;
-      const dy = pointer.deltaY * config.SPLAT_FORCE * verticalForce;
-      const color = density === 1 ? pointer.color : {
-        r: pointer.color.r * density,
-        g: pointer.color.g * density,
-        b: pointer.color.b * density
-      };
-      splat(pointer.texcoordX, pointer.texcoordY, dx, dy, color);
+      const dy = pointer.deltaY * config.SPLAT_FORCE;
+
+      if (touchVerticalSwipe) {
+        const sampleCount = 3;
+        const color = {
+          r: pointer.color.r * 0.72,
+          g: pointer.color.g * 0.72,
+          b: pointer.color.b * 0.72
+        };
+        for (let sample = 1; sample <= sampleCount; sample += 1) {
+          const progress = sample / sampleCount;
+          const x = pointer.prevTexcoordX + (pointer.texcoordX - pointer.prevTexcoordX) * progress;
+          const y = pointer.prevTexcoordY + (pointer.texcoordY - pointer.prevTexcoordY) * progress;
+          splat(x, y, dx / sampleCount, dy * 1.65 / sampleCount, color);
+        }
+        return;
+      }
+
+      splat(pointer.texcoordX, pointer.texcoordY, dx, dy, pointer.color);
     }
 
     function clickSplat(pointer: Pointer) {
