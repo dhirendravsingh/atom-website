@@ -10,8 +10,8 @@ import {
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from "react";
 import SplashCursor from "./components/SplashCursor";
 
-const APK_PATH = "/atom.v.04.apk";
-const APK_SHA = "c694887a76ffe004d5d660c0d3f37ca6fa1f198721c4c7d13dc7ffb7a243b013";
+const APK_PATH = "/atom.v0.4.1.apk";
+const APK_SHA = "0e624978e196e4904c9bfec5ae407a492b1aee72a255994c6a420647b21fc8f0";
 
 type ParseKind = "task" | "date" | "time" | "recurrence";
 
@@ -681,7 +681,7 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
             ]} />
             <p>Say the reminder as it comes to you. Atom understands the detail, stores it on your phone and uses Android alarms to bring it back on time.</p>
             <div className="hero-actions"><DownloadButton /><span><i /> iOS coming soon</span></div>
-            <small className="apk-meta">Android APK · v0.4.0 · Version code 4 · Android 8+ · 18.2 MB</small>
+            <small className="apk-meta">Android APK · v0.4.1 · Version code 5 · Android 8+ · 18.5 MB</small>
           </section>
 
           <section id="experience" className="experience">
@@ -733,7 +733,7 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
       <section id="install" className="install-section">
         <header className="section-heading" data-reveal><span>INSTALL ATOM</span><ParticleHeading lines={[{ text: "Know what you’re" }, { text: "putting on your phone." }]} /><p>The Android APK is small, versioned and fingerprinted so you can verify the file before installing it.</p></header>
         <div className="install-grid">
-          <div className="apk-card" data-reveal><AtomMark /><div className="apk-title"><small>OFFICIAL ANDROID APK</small><strong>Atom v0.4.0</strong></div><dl><div><dt>FILE</dt><dd>atom.v.04.apk</dd></div><div><dt>SIZE</dt><dd>18.2 MB</dd></div><div><dt>MINIMUM</dt><dd>Android 8.0 · API 26</dd></div><div><dt>PACKAGE</dt><dd>com.dhiren.atom</dd></div></dl><div className="checksum"><span>SHA-256</span><code>{APK_SHA}</code><button type="button" onClick={copyChecksum}>{copied ? "Copied" : "Copy"}</button></div><DownloadButton large /><a className="source-link" href="https://github.com/dhirendravsingh/atom-website" target="_blank" rel="noreferrer">View website source on GitHub ↗</a></div>
+          <div className="apk-card" data-reveal><AtomMark /><div className="apk-title"><small>OFFICIAL ANDROID APK</small><strong>Atom v0.4.1</strong></div><dl><div><dt>FILE</dt><dd>atom.v0.4.1.apk</dd></div><div><dt>SIZE</dt><dd>18.5 MB</dd></div><div><dt>MINIMUM</dt><dd>Android 8.0 · API 26</dd></div><div><dt>PACKAGE</dt><dd>com.dhiren.atom</dd></div></dl><div className="checksum"><span>SHA-256</span><code>{APK_SHA}</code><button type="button" onClick={copyChecksum}>{copied ? "Copied" : "Copy"}</button></div><DownloadButton large /><a className="source-link" href="https://github.com/dhirendravsingh/atom-website" target="_blank" rel="noreferrer">View website source on GitHub ↗</a></div>
           <div className="install-steps" data-reveal><span>THREE STEPS</span><ol><li><b>01</b><div><strong>Download the Android APK</strong><p>Use the button on this page. Android may ask you to confirm the download.</p></div></li><li><b>02</b><div><strong>Allow this installation</strong><p>If prompted, permit your browser to install this one APK. You can turn the permission off again afterwards.</p></div></li><li><b>03</b><div><strong>Open Atom and review access</strong><p>Atom explains microphone, notification and exact-alarm access before it needs them.</p></div></li></ol><div className="ios-note"><i /> iOS is planned. No iOS download is offered yet.</div></div>
         </div>
       </section>
@@ -743,7 +743,7 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
         <div className="faq-list">{faqItems.map((item, index) => <FaqItem key={item.question} index={index} {...item} />)}</div>
       </section>
 
-      <footer><a href="#top"><AtomMark /></a><p>Voice-first reminders that stay on your Android phone.</p><a href="#top">Back to top ↑</a><small>© 2026 ATOM · ANDROID APK v0.4.0 · VERSION CODE 4</small></footer>
+      <footer><a href="#top"><AtomMark /></a><p>Voice-first reminders that stay on your Android phone.</p><a href="#top">Back to top ↑</a><small>© 2026 ATOM · ANDROID APK v0.4.1 · VERSION CODE 5</small></footer>
       {prototypeTwo && <a className="mobile-download-dock" href={APK_PATH} download><span><small>GET ATOM</small>Download Android APK</span><b>↓</b></a>}
     </main>
   );

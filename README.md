@@ -22,4 +22,4 @@ The project is a standard Next.js application ready to import into Vercel. Set `
 
 ## Android APK
 
-The official Android APK is served from `public/atom.v.04.apk`. Replace that file and update the version copy in the site when publishing a new Android release.
+The official Android APK is served from `public/atom.v0.4.1.apk`. Replace that file and update the version copy in the site when publishing a new Android release.
