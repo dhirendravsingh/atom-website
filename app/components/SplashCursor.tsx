@@ -1062,9 +1062,17 @@ export default function SplashCursor({
     }
 
     function splatPointer(pointer: Pointer) {
+      const touchVerticalSwipe = pointer.id >= 0 && Math.abs(pointer.deltaY) > Math.abs(pointer.deltaX);
+      const verticalForce = touchVerticalSwipe ? 1.65 : 1;
+      const density = touchVerticalSwipe ? 1.35 : 1;
       const dx = pointer.deltaX * config.SPLAT_FORCE;
-      const dy = pointer.deltaY * config.SPLAT_FORCE;
-      splat(pointer.texcoordX, pointer.texcoordY, dx, dy, pointer.color);
+      const dy = pointer.deltaY * config.SPLAT_FORCE * verticalForce;
+      const color = density === 1 ? pointer.color : {
+        r: pointer.color.r * density,
+        g: pointer.color.g * density,
+        b: pointer.color.b * density
+      };
+      splat(pointer.texcoordX, pointer.texcoordY, dx, dy, color);
     }
 
     function clickSplat(pointer: Pointer) {
