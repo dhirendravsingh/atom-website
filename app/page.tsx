@@ -6,7 +6,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import AtomUniverse from "@/components/AtomUniverse";
 import InteractiveAtom from "@/components/InteractiveAtom";
 
-const APK_PATH = "/atom-android-v0.1.0.apk";
+const APK_PATH = "/atom.v3.apk";
 
 const commands = [
   {
@@ -354,7 +354,7 @@ export default function Home() {
           </h1>
           <p>Speak naturally. Atom captures the detail, keeps it on your phone, and brings it back at exactly the right moment.</p>
           <div className="hero-cta-row"><DownloadButton /><span className="ios-status"><i /> iOS coming soon</span></div>
-          <div className="apk-meta">Android APK · v0.1.0 · Android 8+ · 1.4 MB</div>
+          <div className="apk-meta">Android APK · v0.3.0 · Android 8+ · 18.3 MB</div>
         </div>
 
         <div className="hero-visual">
@@ -498,7 +498,7 @@ export default function Home() {
           <details><summary><span>01</span> What can I say to Atom?<b>+</b></summary><p>Create, reschedule, cancel, snooze, complete and repeat reminders in natural language. If a critical detail is missing, Atom asks instead of guessing.</p></details>
           <details><summary><span>02</span> Does Atom need the internet?<b>+</b></summary><p>Your reminders are stored locally and the experience is designed offline-first. Android handles the alarms and notifications used for delivery.</p></details>
           <details><summary><span>03</span> Which devices are supported?<b>+</b></summary><p>The current Android APK supports Android 8.0 and later. An iOS version is planned and will be offered when it is genuinely ready.</p></details>
-          <details><summary><span>04</span> Is the Android APK the official download?<b>+</b></summary><p>Yes. Every download on this site points to Atom’s current official Android APK, version 0.1.0.</p></details>
+          <details><summary><span>04</span> Is the Android APK the official download?<b>+</b></summary><p>Yes. Every download on this site points to Atom’s current official Android APK, version 0.3.0.</p></details>
         </div>
       </section>
 
@@ -508,7 +508,7 @@ export default function Home() {
         <h2>Make space<br />in your head.</h2>
         <p>Let Atom hold the detail until you need it.</p>
         <div className="download-actions"><DownloadButton className="large" /><span className="ios-card"><b>iOS</b><i /> Coming soon</span></div>
-        <div className="apk-meta center">Android APK · v0.1.0 · Android 8+ · 1.4 MB</div>
+        <div className="apk-meta center">Android APK · v0.3.0 · Android 8+ · 18.3 MB</div>
       </section>
 
       <footer>
