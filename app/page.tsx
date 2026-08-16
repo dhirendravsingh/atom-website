@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from "react";
+import SplashCursor from "./components/SplashCursor";
 
 const APK_PATH = "/atom.v3.apk";
 const APK_SHA = "947db631b06dddbf69f3c67ab0134b0cc7671483668a37f6d1e6701fa0a19e25";
@@ -62,6 +63,27 @@ const experienceSteps = [
     label: "DELIVER",
     title: "The reminder actually rings.",
     body: "Native Android alarms wake through Doze and give you snooze, complete and remind-again actions.",
+  },
+];
+
+const productExperienceSteps = [
+  {
+    index: "01",
+    label: "TODAY",
+    title: "A calm home for what matters.",
+    body: "Atom greets you by name, shows what is scheduled and keeps quick capture within immediate reach.",
+  },
+  {
+    index: "02",
+    label: "CAPTURE",
+    title: "Say it the way you think it.",
+    body: "Press the microphone and speak naturally. Your words stay editable while Atom finds the task and timing.",
+  },
+  {
+    index: "03",
+    label: "REMINDERS",
+    title: "Everything on your radar.",
+    body: "Search and filter scheduled, repeating or incomplete reminders from one focused view.",
   },
 ];
 
@@ -199,11 +221,22 @@ function ProductPhonePanels() {
   return (
     <>
       <section className="phone-panel native-home-panel">
-        <div className="native-greeting">
-          <small>WEDNESDAY · 12 AUGUST</small>
-          <h3>Good evening,<br /><em>Dhiren Sir.</em></h3>
-          <p>You have 3 things worth remembering.</p>
+        <div className="native-greeting-card">
+          <div className="native-greeting">
+            <small>SUNDAY, AUGUST 16</small>
+            <h3>Good afternoon,<br /><em>Dhiren Sir.</em></h3>
+            <p>You have 3 reminders ready.</p>
+          </div>
+          <div className="native-doodle" aria-hidden="true">
+            <div className="doodle-head"><i /><i /><b /></div>
+            <div className="doodle-body" />
+            <div className="doodle-arm left" />
+            <div className="doodle-arm right" />
+            <div className="doodle-spark coral" />
+            <div className="doodle-spark mint" />
+          </div>
         </div>
+
         <div className="native-quick-card">
           <div className="native-card-orbits" aria-hidden="true"><i /><i /><b /></div>
           <small><i /> QUICK CAPTURE</small>
@@ -211,31 +244,34 @@ function ProductPhonePanels() {
           <div className="native-quick-entry"><span>Tell Atom what to remember…</span><b><MicGlyph /></b></div>
           <p>Try “in 20 minutes” or “every weekday at 9 AM”</p>
         </div>
-        <div className="native-next-head"><small><i /> NEXT UP</small><span>View all →</span></div>
+
+        <div className="native-next-head"><div><small>COMING UP</small><strong>Your next reminder</strong></div><span>See all ›</span></div>
         <div className="native-reminder-card"><b>◷</b><div><strong>Send product brief</strong><span>Today · 6:30 PM</span></div><i>•••</i></div>
+        <div className="native-home-stats"><div><strong>03</strong><span>Scheduled</span></div><div><strong>01</strong><span>Needs a detail</span></div></div>
       </section>
 
-      <section className="phone-panel native-understand-panel">
-        <div className="native-subhead"><span>←</span><strong>New reminder</strong><b>×</b></div>
-        <div className="native-transcript">
-          <small>WHAT YOU SAID</small>
-          <p>“Send the product brief to Aisha at 6:30 tomorrow.”</p>
-          <span><i /> Parsed on this phone</span>
+      <section className="phone-panel native-capture-panel">
+        <div className="native-capture-head"><b>←</b><div><strong>New reminder</strong><span>Say it the way you think it</span></div><i>×</i></div>
+        <h3>Say it naturally.<br />I’ll find the when.</h3>
+        <p className="native-capture-hint">“Atom” is optional after you press the microphone.</p>
+        <div className="native-voice-orb" aria-label="Listening"><i /><i /><b><MicGlyph /></b></div>
+        <small className="native-listening"><i /> Listening on your device…</small>
+        <div className="native-words-card">
+          <div><small>YOUR WORDS</small><span>Listening…</span></div>
+          <p>Send the product brief to Aisha tomorrow at 6:30 PM</p>
         </div>
-        <div className="native-editor-heading"><small>ATOM UNDERSTOOD</small><strong>Everything is editable.</strong></div>
-        <div className="native-field"><small>REMINDER</small><strong>Send the product brief to Aisha</strong></div>
-        <div className="native-field-row"><div className="native-field"><small>DATE</small><strong>Tomorrow</strong></div><div className="native-field"><small>TIME</small><strong>6:30 PM</strong></div></div>
-        <div className="native-field"><small>REPEATS</small><strong>One time</strong></div>
-        <button type="button" tabIndex={-1}>Save reminder <span>→</span></button>
+        <div className="native-suggestion-row"><span>In 20 minutes</span><span>Tomorrow</span><span>Every weekday</span></div>
+        <button className="native-understand-button" type="button" tabIndex={-1}><span>✦</span> Understand reminder</button>
       </section>
 
-      <section className="phone-panel native-alarm-panel">
-        <div className="native-alarm-label"><i /> ATOM ALARM</div>
-        <div className="native-alarm-clock"><i /><i /><strong>6:30</strong><span>PM</span></div>
-        <small>TODAY · EXACT ALARM</small>
-        <h3>Send product brief<br />to Aisha</h3>
-        <p>Scheduled locally on this Android phone.</p>
-        <div className="native-alarm-actions"><span>Snooze 10m</span><strong>Complete ✓</strong><span>Remind in 1h</span></div>
+      <section className="phone-panel native-reminders-panel">
+        <div className="native-reminders-head"><div><small>REMINDERS</small><h3>Everything on<br />your radar</h3></div><b aria-hidden="true">⌕</b></div>
+        <div className="native-filter-row"><strong>All</strong><span>Scheduled</span><span>Needs details</span><span>Repeats</span></div>
+        <div className="native-reminder-list">
+          <article><i className="mint" /><div><strong>Send product brief to Aisha</strong><p>▣ Tomorrow&nbsp;&nbsp; ◷ 6:30 PM</p><small>Voice</small></div><b>✎</b></article>
+          <article><i className="coral" /><div><strong>Call Mum</strong><p>▣ Sunday&nbsp;&nbsp; ◷ 7:00 PM</p><small>Text</small></div><b>✎</b></article>
+          <article><i className="lime" /><div><strong>Review my priorities</strong><p>▣ Every weekday&nbsp;&nbsp; ◷ 9:00 AM</p><small>Voice · Repeats</small></div><b>✎</b></article>
+        </div>
       </section>
     </>
   );
@@ -274,19 +310,23 @@ function PhoneMockup({ screen, productUI = false }: { screen: number; productUI?
               </section>
             </>}
           </div>
-          <nav className="phone-nav"><span>{productUI ? "⌂ " : ""}Today</span><span>{productUI ? "☷ " : ""}Reminders</span><b>+</b><span>{productUI ? "⚙ " : ""}Settings</span></nav>
+          <nav className="phone-nav"><span className={productUI && screen === 0 ? "active" : ""}><i>⌂</i>Today</span><span className={productUI && screen === 2 ? "active" : ""}><i>☷</i>Reminders</span><b>+</b><span><i>⚙</i>Settings</span></nav>
         </div>
       </div>
     </div>
   );
 }
 
-function StatePreview({ screen }: { screen: number }) {
-  const content = [
+function StatePreview({ screen, productUI = false }: { screen: number; productUI?: boolean }) {
+  const content = (productUI ? [
+    ["TODAY", "Good afternoon, Dhiren Sir."],
+    ["VOICE CAPTURE", "Say it naturally. I’ll find the when."],
+    ["REMINDERS", "Everything on your radar"],
+  ] : [
     ["VOICE CAPTURE", "“Remind me to call Mum Sunday at 7.”"],
     ["TASK · DATE · TIME", "Call Mum · Sunday · 7:00 PM"],
     ["ANDROID ALARM", "Scheduled and ready to ring"],
-  ][screen];
+  ])[screen];
   return <div className={`mobile-state state-${screen}`}><small>{content[0]}</small><strong>{content[1]}</strong></div>;
 }
 
@@ -447,8 +487,11 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
   const [showPreloader, setShowPreloader] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phoneScreen, setPhoneScreen] = useState(0);
+  const [textMotion, setTextMotion] = useState<"line" | "particle">("line");
+  const [textMotionRun, setTextMotionRun] = useState(0);
   const [copied, setCopied] = useState(false);
   const pageRef = useRef<HTMLElement>(null);
+  const visibleExperienceSteps = prototypeTwo ? productExperienceSteps : experienceSteps;
 
   useEffect(() => {
     const seen = window.sessionStorage.getItem("atom-intro-v2") === "seen";
@@ -482,22 +525,42 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
     }, { threshold: 0.2 });
     document.querySelectorAll("[data-reveal]").forEach((element) => revealObserver.observe(element));
 
-    const stepObserver = new IntersectionObserver((entries) => {
-      const active = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (active) setPhoneScreen(Number((active.target as HTMLElement).dataset.step ?? 0));
-    }, { rootMargin: "-28% 0px -28% 0px", threshold: [0.25, 0.55, 0.8] });
-    document.querySelectorAll("[data-step]").forEach((element) => stepObserver.observe(element));
-
+    const steps = Array.from(document.querySelectorAll<HTMLElement>("[data-step]"));
+    let scrollFrame = 0;
     const onScroll = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      pageRef.current?.style.setProperty("--progress", `${max > 0 ? window.scrollY / max : 0}`);
+      if (scrollFrame) return;
+      scrollFrame = window.requestAnimationFrame(() => {
+        scrollFrame = 0;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        pageRef.current?.style.setProperty("--progress", `${max > 0 ? window.scrollY / max : 0}`);
+
+        const anchor = window.innerHeight * .48;
+        const experience = document.getElementById("experience")?.getBoundingClientRect();
+        if (!experience || experience.top > anchor) {
+          setPhoneScreen(0);
+          return;
+        }
+        let activeIndex = 0;
+        let nearest = Number.POSITIVE_INFINITY;
+        steps.forEach((step, index) => {
+          const bounds = step.getBoundingClientRect();
+          const distance = Math.abs(bounds.top + bounds.height * .42 - anchor);
+          if (distance < nearest) {
+            nearest = distance;
+            activeIndex = index;
+          }
+        });
+        setPhoneScreen(activeIndex);
+      });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
     onScroll();
     return () => {
       revealObserver.disconnect();
-      stepObserver.disconnect();
+      window.cancelAnimationFrame(scrollFrame);
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
     };
   }, []);
 
@@ -512,10 +575,30 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
     window.setTimeout(() => setCopied(false), 1600);
   };
 
+  const chooseTextMotion = (motion: "line" | "particle") => {
+    setTextMotion(motion);
+    setTextMotionRun((run) => run + 1);
+  };
+
   return (
     <main ref={pageRef} className={`site ${ready ? "is-ready" : ""} ${prototypeTwo ? "prototype-two" : ""}`}>
       <a className="skip-link" href="#content">Skip to content</a>
       <div className="scroll-progress" aria-hidden="true" />
+      {prototypeTwo && (
+        <SplashCursor
+          SIM_RESOLUTION={96}
+          DYE_RESOLUTION={768}
+          DENSITY_DISSIPATION={2.8}
+          VELOCITY_DISSIPATION={1.8}
+          PRESSURE_ITERATIONS={14}
+          CURL={4}
+          SPLAT_RADIUS={0.14}
+          SPLAT_FORCE={4200}
+          COLOR_UPDATE_SPEED={5}
+          RAINBOW_MODE={false}
+          COLOR="#65c29e"
+        />
+      )}
       {showPreloader && <div className="preloader"><AtomMark /><span><i /> INITIALISING LOCAL MEMORY</span><b /></div>}
 
       <header className="site-header">
@@ -548,24 +631,39 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
         <div className="narrative-column" id="content">
           <section id="top" className="hero">
             <div className="eyebrow"><i /> VOICE-FIRST · OFFLINE-FIRST</div>
-            <h1 aria-label="Nothing important slips through.">
+            <h1 key={`${textMotion}-${textMotionRun}`} className={`text-motion-${textMotion}`} aria-label="Nothing important slips through.">
               <span className="line-mask"><b>Nothing</b></span>
               <span className="line-mask"><b>important</b></span>
               <span className="line-mask accent"><b>slips through.</b></span>
+              {prototypeTwo && textMotion === "particle" && <span className="headline-particle-sparks" aria-hidden="true">
+                {Array.from({ length: 28 }).map((_, index) => <i key={index} style={{
+                  "--spark-x": `${4 + (index * 37) % 92}%`,
+                  "--spark-y": `${6 + (index * 23) % 88}%`,
+                  "--spark-dx": `${-52 + (index * 29) % 104}px`,
+                  "--spark-dy": `${-38 + (index * 31) % 76}px`,
+                  "--spark-delay": `${(index % 9) * 55}ms`,
+                  "--spark-size": `${2 + index % 5}px`,
+                } as CSSProperties} />)}
+              </span>}
             </h1>
             <p>Say the reminder as it comes to you. Atom understands the detail, stores it on your phone and uses Android alarms to bring it back on time.</p>
             <div className="hero-actions"><DownloadButton /><span><i /> iOS coming soon</span></div>
             <small className="apk-meta">Android APK · v0.3.0 · Version code 3 · Android 8+ · 18.3 MB</small>
+            {prototypeTwo && <div className="text-motion-switch" aria-label="Compare headline animations">
+              <span>TEXT MOTION</span>
+              <button className={textMotion === "line" ? "active" : ""} type="button" aria-pressed={textMotion === "line"} onClick={() => chooseTextMotion("line")}>A&nbsp; Line reveal</button>
+              <button className={textMotion === "particle" ? "active" : ""} type="button" aria-pressed={textMotion === "particle"} onClick={() => chooseTextMotion("particle")}>B&nbsp; Particle assembly</button>
+            </div>}
           </section>
 
           <section id="experience" className="experience">
             <header className="section-heading" data-reveal>
               <span>THE EXPERIENCE</span><h2>One thought.<br />Three clear states.</h2>
             </header>
-            {experienceSteps.map((step, index) => (
+            {visibleExperienceSteps.map((step, index) => (
               <article key={step.index} className={`experience-step ${phoneScreen === index ? "active" : ""}`} data-step={index}>
                 <div className="step-index"><span>{step.index}</span><i /></div>
-                <small>{step.label}</small><h3>{step.title}</h3><p>{step.body}</p><StatePreview screen={index} />
+                <small>{step.label}</small><h3>{step.title}</h3><p>{step.body}</p><StatePreview screen={index} productUI={prototypeTwo} />
               </article>
             ))}
           </section>
