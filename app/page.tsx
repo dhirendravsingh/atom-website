@@ -1,522 +1,628 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import AtomUniverse from "@/components/AtomUniverse";
-import InteractiveAtom from "@/components/InteractiveAtom";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from "react";
 
 const APK_PATH = "/atom.v3.apk";
+const APK_SHA = "947db631b06dddbf69f3c67ab0134b0cc7671483668a37f6d1e6701fa0a19e25";
 
-const commands = [
-  {
-    prompt: "Remind me to send the product brief to Aisha at 6:30 tonight.",
-    title: "Send product brief to Aisha",
-    when: "Today · 6:30 PM",
-    meta: "One-time reminder",
-  },
-  {
-    prompt: "Move my dentist reminder to Friday morning.",
-    title: "Dentist appointment",
-    when: "Friday · 9:00 AM",
-    meta: "Rescheduled by voice",
-  },
-  {
-    prompt: "Every Sunday at 7, remind me to call Mum.",
-    title: "Call Mum",
-    when: "Sundays · 7:00 PM",
-    meta: "Repeats weekly",
-  },
+type ParseKind = "task" | "date" | "time" | "recurrence";
+
+type MatchRange = {
+  kind: Exclude<ParseKind, "task">;
+  start: number;
+  end: number;
+  value: string;
+};
+
+type SentenceToken = {
+  text: string;
+  start: number;
+  end: number;
+  kind?: ParseKind;
+};
+
+type ParseResult = {
+  task: string;
+  date: string | null;
+  time: string | null;
+  recurrence: string | null;
+  question: string | null;
+  tokens: SentenceToken[];
+};
+
+const seeds = [
+  "Remind me to send the product brief to Aisha at 6:30 PM tomorrow.",
+  "Every Sunday at 7 PM remind me to call Mum.",
+  "Remind me to refill my prescription tomorrow.",
+  "In 20 minutes remind me to switch off the oven.",
 ];
 
-const story = [
+const experienceSteps = [
   {
     index: "01",
-    label: "Capture",
-    title: "Say it the way you think it.",
-    body: "No forms. No tiny date pickers. Tell Atom what matters in plain language and it pulls the task, date, time and recurrence into place.",
-    foot: "Voice + natural language",
+    label: "CAPTURE",
+    title: "Say it naturally.",
+    body: "Speak or type the thought as it arrives. No form, no date picker, no ceremony.",
   },
   {
     index: "02",
-    label: "Understand",
-    title: "Details stay precise.",
-    body: "If a date or time is missing, Atom asks. It never quietly invents the detail that decides when your reminder should ring.",
-    foot: "Clear before it commits",
+    label: "UNDERSTAND",
+    title: "Atom separates intent from timing.",
+    body: "Task, date, time and recurrence are extracted on-device. If a critical detail is missing, Atom asks.",
   },
   {
     index: "03",
-    label: "Deliver",
-    title: "When it matters, Atom shows up.",
-    body: "Android alarms and notifications are designed for reliable delivery, with snooze, complete and remind-again actions ready when you need them.",
-    foot: "Built around Android alarms",
+    label: "DELIVER",
+    title: "The reminder actually rings.",
+    body: "Native Android alarms wake through Doze and give you snooze, complete and remind-again actions.",
   },
 ];
 
-type CssVars = CSSProperties & Record<`--${string}`, string | number>;
+const faqItems = [
+  {
+    question: "What can I say to Atom?",
+    answer: "Create, reschedule, cancel, snooze, complete and repeat reminders in natural language. If a date, time or AM/PM detail is unclear, Atom asks instead of guessing.",
+  },
+  {
+    question: "Does Atom send reminders to a server?",
+    answer: "No. Reminder records are stored on your Android device. The website playground also parses in your browser without a network request.",
+  },
+  {
+    question: "Why does Atom request exact-alarm access?",
+    answer: "Android 12 and later require special access for exact alarms. Atom uses it so a 6:30 PM reminder can target 6:30 PM, including while the phone is idle.",
+  },
+  {
+    question: "Which devices are supported?",
+    answer: "The current Android APK supports Android 8.0 and later. iOS is planned, but there is no iOS download yet.",
+  },
+];
 
-function AtomMark({ word = true }: { word?: boolean }) {
-  return (
-    <span className="brand-lockup">
-      <span className="brand-icon">
-        <Image src="/atom-icon.svg" alt="" width={64} height={64} priority />
-      </span>
-      {word && <span className="brand-word">atom</span>}
-    </span>
-  );
+function titleCase(value: string) {
+  return value
+    .trim()
+    .replace(/^(at|on)\s+/i, "")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function AtomField() {
-  const particles = useMemo(() => {
-    const dots: Array<{ x: number; y: number; size: number; delay: number; ring: number }> = [];
+function formatTime(raw: string) {
+  const clean = raw.replace(/^at\s+/i, "").trim();
+  if (/^noon$/i.test(clean)) return { value: "12:00 PM", ambiguous: false };
+  if (/^midnight$/i.test(clean)) return { value: "12:00 AM", ambiguous: false };
+  if (/^in\s+/i.test(clean)) return { value: titleCase(clean), ambiguous: false };
 
-    for (let ring = 0; ring < 3; ring += 1) {
-      for (let i = 0; i < 46; i += 1) {
-        const angle = (i / 46) * Math.PI * 2;
-        const rx = 31;
-        const ry = 12;
-        const baseX = Math.cos(angle) * rx;
-        const baseY = Math.sin(angle) * ry;
-        const rotation = ring * (Math.PI / 3);
-        const x = baseX * Math.cos(rotation) - baseY * Math.sin(rotation);
-        const y = baseX * Math.sin(rotation) + baseY * Math.cos(rotation);
-        const pulse = Math.sin(i * 2.21 + ring) * 1.6;
-        dots.push({
-          x: x + pulse,
-          y: y + Math.cos(i * 1.37) * 1.2,
-          size: 1 + ((i * 7 + ring * 3) % 4) * 0.55,
-          delay: -((i * 0.11 + ring * 0.7) % 4),
-          ring,
-        });
-      }
-    }
+  const match = clean.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if (!match) return { value: titleCase(clean), ambiguous: false };
+  const hour = match[1];
+  const minute = match[2] ?? "00";
+  const meridiem = match[3]?.toUpperCase();
+  return {
+    value: `${hour}:${minute}${meridiem ? ` ${meridiem}` : ""}`,
+    ambiguous: !meridiem,
+  };
+}
 
-    return dots;
-  }, []);
+function parseReminder(input: string): ParseResult {
+  const text = input.trim();
+  const ranges: MatchRange[] = [];
 
+  const recurrenceMatch = /\b(?:every\s+(?:\d+\s+)?(?:day|days|weekday|weekdays|week|weeks|month|months|monday|tuesday|wednesday|thursday|friday|saturday|sunday|hour|hours)|daily|weekly|monthly)\b/i.exec(text);
+  if (recurrenceMatch) {
+    ranges.push({
+      kind: "recurrence",
+      start: recurrenceMatch.index,
+      end: recurrenceMatch.index + recurrenceMatch[0].length,
+      value: titleCase(recurrenceMatch[0]),
+    });
+  }
+
+  const dateMatch = /\b(?:(?:on|next)\s+)?(?:today|tomorrow|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\s+week|this\s+weekend)\b/i.exec(text);
+  if (dateMatch && !ranges.some((range) => dateMatch.index >= range.start && dateMatch.index < range.end)) {
+    ranges.push({
+      kind: "date",
+      start: dateMatch.index,
+      end: dateMatch.index + dateMatch[0].length,
+      value: titleCase(dateMatch[0]),
+    });
+  }
+
+  const relativeTime = /\bin\s+\d+\s+(?:minute|minutes|hour|hours)\b/i.exec(text);
+  const clockTime = /\b(?:at\s+)?(?:\d{1,2}(?::\d{2})?\s*(?:am|pm)?|noon|midnight)\b/i.exec(text);
+  const timeMatch = relativeTime ?? clockTime;
+  let ambiguousTime = false;
+  if (timeMatch) {
+    const formatted = formatTime(timeMatch[0]);
+    ambiguousTime = formatted.ambiguous;
+    ranges.push({
+      kind: "time",
+      start: timeMatch.index,
+      end: timeMatch.index + timeMatch[0].length,
+      value: formatted.value,
+    });
+  }
+
+  const prefixMatch = /^\s*(?:(?:hey\s+)?atom[,\s]*)?(?:remind\s+me(?:\s+to|\s+about)?|remember\s+to|schedule|create\s+(?:a\s+)?reminder(?:\s+to)?|don['’]t\s+let\s+me\s+forget\s+to)\s*/i.exec(text);
+  const prefixEnd = prefixMatch?.[0].length ?? 0;
+  const taskCharacters = Array.from(text);
+  for (let index = 0; index < prefixEnd; index += 1) taskCharacters[index] = " ";
+  ranges.forEach((range) => {
+    for (let index = range.start; index < range.end; index += 1) taskCharacters[index] = " ";
+  });
+  const task = taskCharacters
+    .join("")
+    .replace(/\b(?:at|on)\s*[,.]?\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .replace(/^[,.;\s]+|[,.;\s]+$/g, "") || "Untitled reminder";
+
+  const rawTokens: SentenceToken[] = [];
+  const matcher = /\s+|[^\s]+/g;
+  let tokenMatch: RegExpExecArray | null;
+  while ((tokenMatch = matcher.exec(text))) {
+    const start = tokenMatch.index;
+    const end = start + tokenMatch[0].length;
+    const range = ranges.find((candidate) => start < candidate.end && end > candidate.start);
+    const isTask = start >= prefixEnd && !range && /\S/.test(tokenMatch[0]);
+    rawTokens.push({ text: tokenMatch[0], start, end, kind: range?.kind ?? (isTask ? "task" : undefined) });
+  }
+
+  const date = ranges.find((range) => range.kind === "date")?.value ?? null;
+  const time = ranges.find((range) => range.kind === "time")?.value ?? null;
+  const recurrence = ranges.find((range) => range.kind === "recurrence")?.value ?? null;
+  let question: string | null = null;
+  if (!time) question = `What time should I remind you to ${task.replace(/[?.!]$/, "")}?`;
+  else if (ambiguousTime) question = `Is ${time} in the morning or evening?`;
+  else if (!date && !recurrence && !relativeTime) question = "Which day should this reminder run?";
+
+  return { task, date, time, recurrence, question, tokens: rawTokens };
+}
+
+function AtomMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="atom-field" aria-hidden="true">
-      <div className="field-aura" />
-      <div className="field-core" />
-      {particles.map((dot, index) => (
-        <span
-          className={`field-particle particle-${dot.ring}`}
-          key={`${dot.ring}-${index}`}
-          style={
-            {
-              "--x": `${dot.x.toFixed(4)}%`,
-              "--y": `${dot.y.toFixed(4)}%`,
-              "--size": `${dot.size.toFixed(2)}px`,
-              "--delay": `${dot.delay.toFixed(2)}s`,
-            } as CssVars
-          }
-        />
-      ))}
-    </div>
+    <span className={`brand-lockup ${compact ? "compact" : ""}`}>
+      <span className="brand-icon"><Image src="/atom-icon.svg" alt="" width={64} height={64} priority /></span>
+      <span className="brand-word">atom</span>
+    </span>
   );
 }
 
 function MicGlyph() {
+  return <span className="mic-glyph" aria-hidden="true"><i /></span>;
+}
+
+function ProductPhonePanels() {
   return (
-    <span className="mic-glyph" aria-hidden="true">
-      <i />
-    </span>
+    <>
+      <section className="phone-panel native-home-panel">
+        <div className="native-greeting">
+          <small>WEDNESDAY · 12 AUGUST</small>
+          <h3>Good evening,<br /><em>Dhiren Sir.</em></h3>
+          <p>You have 3 things worth remembering.</p>
+        </div>
+        <div className="native-quick-card">
+          <div className="native-card-orbits" aria-hidden="true"><i /><i /><b /></div>
+          <small><i /> QUICK CAPTURE</small>
+          <strong>What should I remind you?</strong>
+          <div className="native-quick-entry"><span>Tell Atom what to remember…</span><b><MicGlyph /></b></div>
+          <p>Try “in 20 minutes” or “every weekday at 9 AM”</p>
+        </div>
+        <div className="native-next-head"><small><i /> NEXT UP</small><span>View all →</span></div>
+        <div className="native-reminder-card"><b>◷</b><div><strong>Send product brief</strong><span>Today · 6:30 PM</span></div><i>•••</i></div>
+      </section>
+
+      <section className="phone-panel native-understand-panel">
+        <div className="native-subhead"><span>←</span><strong>New reminder</strong><b>×</b></div>
+        <div className="native-transcript">
+          <small>WHAT YOU SAID</small>
+          <p>“Send the product brief to Aisha at 6:30 tomorrow.”</p>
+          <span><i /> Parsed on this phone</span>
+        </div>
+        <div className="native-editor-heading"><small>ATOM UNDERSTOOD</small><strong>Everything is editable.</strong></div>
+        <div className="native-field"><small>REMINDER</small><strong>Send the product brief to Aisha</strong></div>
+        <div className="native-field-row"><div className="native-field"><small>DATE</small><strong>Tomorrow</strong></div><div className="native-field"><small>TIME</small><strong>6:30 PM</strong></div></div>
+        <div className="native-field"><small>REPEATS</small><strong>One time</strong></div>
+        <button type="button" tabIndex={-1}>Save reminder <span>→</span></button>
+      </section>
+
+      <section className="phone-panel native-alarm-panel">
+        <div className="native-alarm-label"><i /> ATOM ALARM</div>
+        <div className="native-alarm-clock"><i /><i /><strong>6:30</strong><span>PM</span></div>
+        <small>TODAY · EXACT ALARM</small>
+        <h3>Send product brief<br />to Aisha</h3>
+        <p>Scheduled locally on this Android phone.</p>
+        <div className="native-alarm-actions"><span>Snooze 10m</span><strong>Complete ✓</strong><span>Remind in 1h</span></div>
+      </section>
+    </>
   );
 }
 
-function PhoneMockup({ screen = 0, hero = false }: { screen?: number; hero?: boolean }) {
-  const active = Math.max(0, Math.min(screen, 2));
-
+function PhoneMockup({ screen, productUI = false }: { screen: number; productUI?: boolean }) {
   return (
-    <div className={`phone-wrap ${hero ? "phone-hero" : ""}`} aria-hidden="true">
-      <div className="phone-glow" />
-      <div className="phone-shell">
+    <div className={`phone phone-state-${screen} ${productUI ? "product-phone" : ""}`} aria-label="Atom product interface preview">
+      <div className="phone-frame">
         <div className="phone-notch" />
-        <div className="phone-status">
-          <span>9:41</span>
-          <span className="status-icons">••• ◐ ▰</span>
-        </div>
-        <div className={`phone-screen screen-${active}`}>
-          <header className="app-topbar">
-            <AtomMark />
-            <span className="avatar">D</span>
-          </header>
-
-          <div className="app-panels">
-            <section className="app-panel home-panel">
-              <div className="app-date">TUESDAY, 11 AUGUST</div>
-              <h3>
-                Good afternoon,<br />
-                <em>Dhiren.</em>
-              </h3>
-              <p>You have 4 things worth remembering.</p>
-              <div className="quick-card">
+        <div className="phone-status"><span>9:41</span><span>••• ◐ ▰</span></div>
+        <div className="phone-screen">
+          <header className="app-header"><AtomMark compact />{productUI ? <div className="native-head-actions" aria-hidden="true"><i className="native-moon">◒</i><i className="native-bell">♢<b /></i><span>D</span></div> : <span>D</span>}</header>
+          <div className="phone-panels">
+            {productUI ? <ProductPhonePanels /> : <>
+              <section className="phone-panel capture-panel">
                 <small>QUICK CAPTURE</small>
-                <strong>What should I remember?</strong>
-                <div className="quick-input">
-                  <span>Tell Atom what to remember…</span>
-                  <b><MicGlyph /></b>
+                <h3>What should I remember?</h3>
+                <div className="capture-input"><span>Tell Atom what to remember…</span><b><MicGlyph /></b></div>
+                <div className="voice-wave" aria-hidden="true">
+                  {Array.from({ length: 20 }).map((_, index) => <i key={index} style={{ "--wave": `${0.25 + (index * 13 % 65) / 100}` } as CSSProperties} />)}
                 </div>
-              </div>
-              <div className="next-label"><span /> NEXT UP</div>
-              <div className="reminder-card">
-                <i />
-                <div>
-                  <small>◷ TODAY · JUL 28</small>
-                  <strong>Send product brief to Aisha</strong>
-                  <span>6:30 PM</span>
-                </div>
-                <b>›</b>
-              </div>
-            </section>
-
-            <section className="app-panel listen-panel">
-              <div className="listen-meta">LISTENING · ON DEVICE</div>
-              <div className="voice-orb">
-                <span /><span /><span /><MicGlyph />
-              </div>
-              <div className="heard-copy">“Move my dentist reminder<br />to Friday morning.”</div>
-              <div className="understood-card">
+                <p>“Send the product brief to Aisha at 6:30 tomorrow.”</p>
+              </section>
+              <section className="phone-panel understand-panel">
                 <small>ATOM UNDERSTOOD</small>
-                <strong>Dentist appointment</strong>
-                <div><span>FRIDAY</span><span>9:00 AM</span></div>
-              </div>
-              <div className="confirm-pill">Ready to reschedule</div>
-            </section>
-
-            <section className="app-panel alarm-panel">
-              <div className="alarm-rings"><span /><span /><span /></div>
-              <div className="alarm-time">6:30</div>
-              <div className="alarm-meridiem">PM · TODAY</div>
-              <h3>Send product brief<br />to Aisha</h3>
-              <div className="alarm-actions">
-                <span>Snooze</span>
-                <strong>Complete</strong>
-                <span>Again</span>
-              </div>
-              <div className="delivery-note">Delivered by Android alarm</div>
-            </section>
+                <h3>Send product brief to Aisha</h3>
+                <div className="phone-slots"><span>TOMORROW</span><span>6:30 PM</span><span>ONE TIME</span></div>
+                <div className="local-status"><i /> Parsed on this device</div>
+              </section>
+              <section className="phone-panel delivery-panel">
+                <div className="alarm-pulse"><i /><i /><b>6:30</b></div>
+                <small>PM · TOMORROW</small>
+                <h3>Send product brief<br />to Aisha</h3>
+                <div className="alarm-actions"><span>Snooze</span><strong>Complete</strong><span>Again</span></div>
+              </section>
+            </>}
           </div>
-
-          <nav className="app-nav">
-            <span className="active">⌂<small>Today</small></span>
-            <span>☷<small>Reminders</small></span>
-            <b>+</b>
-            <span>⚙<small>Settings</small></span>
-          </nav>
+          <nav className="phone-nav"><span>{productUI ? "⌂ " : ""}Today</span><span>{productUI ? "☷ " : ""}Reminders</span><b>+</b><span>{productUI ? "⚙ " : ""}Settings</span></nav>
         </div>
       </div>
     </div>
   );
 }
 
-function DownloadButton({ className = "" }: { className?: string }) {
-  const buttonRef = useRef<HTMLAnchorElement>(null);
+function StatePreview({ screen }: { screen: number }) {
+  const content = [
+    ["VOICE CAPTURE", "“Remind me to call Mum Sunday at 7.”"],
+    ["TASK · DATE · TIME", "Call Mum · Sunday · 7:00 PM"],
+    ["ANDROID ALARM", "Scheduled and ready to ring"],
+  ][screen];
+  return <div className={`mobile-state state-${screen}`}><small>{content[0]}</small><strong>{content[1]}</strong></div>;
+}
 
+function DownloadButton({ large = false }: { large?: boolean }) {
+  const ref = useRef<HTMLAnchorElement>(null);
   const move = (event: ReactPointerEvent<HTMLAnchorElement>) => {
-    const button = buttonRef.current;
-    if (!button || window.matchMedia("(pointer: coarse)").matches) return;
-    const bounds = button.getBoundingClientRect();
-    button.style.setProperty("--mag-x", `${(event.clientX - bounds.left - bounds.width / 2) * 0.16}px`);
-    button.style.setProperty("--mag-y", `${(event.clientY - bounds.top - bounds.height / 2) * 0.2}px`);
+    if (window.matchMedia("(pointer: coarse), (prefers-reduced-motion: reduce)").matches) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty("--mx", `${(event.clientX - bounds.left - bounds.width / 2) * 0.14}px`);
+    event.currentTarget.style.setProperty("--my", `${(event.clientY - bounds.top - bounds.height / 2) * 0.18}px`);
   };
-
   const reset = () => {
-    buttonRef.current?.style.setProperty("--mag-x", "0px");
-    buttonRef.current?.style.setProperty("--mag-y", "0px");
+    ref.current?.style.setProperty("--mx", "0px");
+    ref.current?.style.setProperty("--my", "0px");
   };
-
   return (
-    <a ref={buttonRef} className={`download-button ${className}`} href={APK_PATH} download onPointerMove={move} onPointerLeave={reset}>
-      <span>Download Android APK</span>
-      <b aria-hidden="true">↓</b>
+    <a ref={ref} className={`download-button ${large ? "large" : ""}`} href={APK_PATH} download onPointerMove={move} onPointerLeave={reset}>
+      <span>Download Android APK</span><b aria-hidden="true">↓</b>
     </a>
   );
 }
 
-export default function Home() {
+function ParserPlayground() {
+  const [input, setInput] = useState(seeds[0]);
+  const [result, setResult] = useState<ParseResult>(() => parseReminder(seeds[0]));
+  const [parseRun, setParseRun] = useState(1);
+  const [processing, setProcessing] = useState(false);
+  const [parseMs, setParseMs] = useState("0.0");
+  const sentenceRef = useRef<HTMLDivElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  const executeParse = useCallback((value: string) => {
+    if (!value.trim()) return;
+    setProcessing(true);
+    const start = performance.now();
+    const next = parseReminder(value);
+    setResult(next);
+    setParseRun((run) => run + 1);
+    setParseMs((performance.now() - start).toFixed(1));
+    queueMicrotask(() => setProcessing(false));
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => executeParse(input), 360);
+    return () => window.clearTimeout(timer);
+  }, [input, executeParse]);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const flying: HTMLElement[] = [];
+    const timers: number[] = [];
+    const frame = window.requestAnimationFrame(() => {
+      const source = sentenceRef.current;
+      const resultCard = resultRef.current;
+      if (!source || !resultCard) return;
+      source.classList.remove("is-parsing");
+      resultCard.classList.remove("is-complete");
+      void source.offsetWidth;
+      source.classList.add("is-parsing");
+
+      const nodes = Array.from(source.querySelectorAll<HTMLElement>("[data-token-kind]"));
+      nodes.forEach((node, index) => {
+        const kind = node.dataset.tokenKind;
+        const destination = resultCard.querySelector<HTMLElement>(`[data-slot="${kind}"]`);
+        if (!destination || !node.textContent?.trim()) return;
+        const from = node.getBoundingClientRect();
+        const to = destination.getBoundingClientRect();
+        const clone = document.createElement("span");
+        clone.className = "flying-token";
+        clone.textContent = node.textContent;
+        Object.assign(clone.style, {
+          left: `${from.left}px`,
+          top: `${from.top}px`,
+          width: `${from.width}px`,
+          height: `${from.height}px`,
+        });
+        document.body.appendChild(clone);
+        flying.push(clone);
+        const dx = to.left + Math.min(to.width * 0.18, 24) - from.left;
+        const dy = to.top + to.height / 2 - from.top - from.height / 2;
+        const animation = clone.animate(
+          [
+            { opacity: 0, transform: "translate3d(0,0,0) scale(1)" },
+            { opacity: 0.9, offset: 0.18 },
+            { opacity: 0, transform: `translate3d(${dx}px,${dy}px,0) scale(.72)` },
+          ],
+          { duration: 420, delay: Math.min(index * 34, 330), easing: "cubic-bezier(.16,1,.3,1)", fill: "forwards" },
+        );
+        void animation.finished.finally(() => clone.remove());
+      });
+      timers.push(window.setTimeout(() => resultCard.classList.add("is-complete"), Math.min(nodes.length * 34 + 330, 720)));
+      timers.push(window.setTimeout(() => source.classList.remove("is-parsing"), 860));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      timers.forEach(window.clearTimeout);
+      flying.forEach((element) => element.remove());
+    };
+  }, [parseRun]);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    executeParse(input);
+  };
+
+  return (
+    <div className="playground-shell">
+      <form className="playground-input" onSubmit={submit}>
+        <label htmlFor="reminder-input">Type a reminder in your own words</label>
+        <textarea id="reminder-input" value={input} onChange={(event) => setInput(event.target.value)} rows={3} spellCheck="true" />
+        <div className="playground-controls">
+          <span><i /> {processing ? "PARSING" : `PARSED LOCALLY · ${parseMs}MS`}</span>
+          <button type="submit">Parse reminder <b>↗</b></button>
+        </div>
+        <div className="seed-list" aria-label="Example reminder phrases">
+          {seeds.map((seed, index) => <button type="button" key={seed} onClick={() => { setInput(seed); executeParse(seed); }}>0{index + 1}</button>)}
+        </div>
+      </form>
+
+      <div className="sentence-stage">
+        <div className="stage-label"><span>INPUT SENTENCE</span><span>CLIENT-SIDE RULE PARSER</span></div>
+        <div ref={sentenceRef} className="token-sentence" aria-label={input}>
+          {result.tokens.map((token, index) => (
+            <span key={`${token.start}-${index}`} className={token.kind ? `token token-${token.kind}` : "token"} data-token-kind={token.kind} aria-hidden="true">{token.text}</span>
+          ))}
+        </div>
+      </div>
+
+      <div ref={resultRef} className="parse-result" key={parseRun}>
+        <div className="result-head"><span>ATOM UNDERSTOOD</span><span>{result.question ? "NEEDS A DETAIL" : "READY TO SCHEDULE"}</span></div>
+        <div className="result-slots">
+          <div className="result-slot task-slot" data-slot="task"><small>TASK</small><strong>{result.task}</strong></div>
+          <div className="result-slot" data-slot="date"><small>DATE</small><strong>{result.date ?? (result.recurrence ? "From recurrence" : result.time?.startsWith("In ") ? "From now" : "Needed")}</strong></div>
+          <div className="result-slot" data-slot="time"><small>TIME</small><strong>{result.time ?? "Needed"}</strong></div>
+          <div className="result-slot" data-slot="recurrence"><small>REPEATS</small><strong>{result.recurrence ?? "One time"}</strong></div>
+        </div>
+        {result.question ? <div className="atom-question"><small>ATOM WOULD ASK</small><p>{result.question}</p></div> : <div className="parse-confirmation"><i /> Task, timing and recurrence are clear.</div>}
+      </div>
+    </div>
+  );
+}
+
+function FaqItem({ index, question, answer }: { index: number; question: string; answer: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`faq-item ${open ? "open" : ""}`}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <small>0{index + 1}</small><span>{question}</span><b aria-hidden="true">+</b>
+      </button>
+      <div className="faq-answer"><div><p>{answer}</p></div></div>
+    </div>
+  );
+}
+
+export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean }) {
+  const [ready, setReady] = useState(false);
+  const [showPreloader, setShowPreloader] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [activeStory, setActiveStory] = useState(0);
-  const [commandIndex, setCommandIndex] = useState(0);
+  const [phoneScreen, setPhoneScreen] = useState(0);
+  const [copied, setCopied] = useState(false);
   const pageRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const loadTimer = window.setTimeout(() => setLoaded(true), 1200);
-    const root = pageRef.current;
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (!root) return;
-      root.style.setProperty("--tilt-x", `${(event.clientX / window.innerWidth - 0.5) * 10}deg`);
-      root.style.setProperty("--tilt-y", `${(event.clientY / window.innerHeight - 0.5) * -7}deg`);
+    const seen = window.sessionStorage.getItem("atom-intro-v2") === "seen";
+    if (seen) {
+      const frame = window.requestAnimationFrame(() => {
+        setReady(true);
+        setShowPreloader(false);
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.sessionStorage.setItem("atom-intro-v2", "seen");
+      setReady(true);
+      setShowPreloader(false);
     };
+    const cap = window.setTimeout(finish, 560);
+    void document.fonts.ready.then(finish);
+    return () => window.clearTimeout(cap);
+  }, []);
+
+  useEffect(() => {
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-revealed");
+        revealObserver.unobserve(entry.target);
+      });
+    }, { threshold: 0.2 });
+    document.querySelectorAll("[data-reveal]").forEach((element) => revealObserver.observe(element));
+
+    const stepObserver = new IntersectionObserver((entries) => {
+      const active = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (active) setPhoneScreen(Number((active.target as HTMLElement).dataset.step ?? 0));
+    }, { rootMargin: "-28% 0px -28% 0px", threshold: [0.25, 0.55, 0.8] });
+    document.querySelectorAll("[data-step]").forEach((element) => stepObserver.observe(element));
 
     const onScroll = () => {
-      if (!root) return;
       const max = document.documentElement.scrollHeight - window.innerHeight;
-      root.style.setProperty("--page-progress", `${max > 0 ? window.scrollY / max : 0}`);
+      pageRef.current?.style.setProperty("--progress", `${max > 0 ? window.scrollY / max : 0}`);
     };
-
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) setActiveStory(Number((visible.target as HTMLElement).dataset.story || 0));
-      },
-      { rootMargin: "-25% 0px -25% 0px", threshold: [0.2, 0.5, 0.75] },
-    );
-
-    document.querySelectorAll<HTMLElement>("[data-story]").forEach((item) => observer.observe(item));
-
     return () => {
-      window.clearTimeout(loadTimer);
-      window.removeEventListener("pointermove", onPointerMove);
+      revealObserver.disconnect();
+      stepObserver.disconnect();
       window.removeEventListener("scroll", onScroll);
-      observer.disconnect();
     };
   }, []);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, [menuOpen]);
 
-  const activeCommand = commands[commandIndex];
-
-  const tiltCard = (event: ReactPointerEvent<HTMLElement>) => {
-    if (window.matchMedia("(pointer: coarse)").matches) return;
-    const card = event.currentTarget;
-    const bounds = card.getBoundingClientRect();
-    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
-    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
-    card.style.setProperty("--card-rx", `${y * -5}deg`);
-    card.style.setProperty("--card-ry", `${x * 6}deg`);
-  };
-
-  const resetCard = (event: ReactPointerEvent<HTMLElement>) => {
-    event.currentTarget.style.setProperty("--card-rx", "0deg");
-    event.currentTarget.style.setProperty("--card-ry", "0deg");
+  const copyChecksum = async () => {
+    await navigator.clipboard.writeText(APK_SHA);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
   };
 
   return (
-    <main ref={pageRef} className={`site ${loaded ? "is-loaded" : "is-loading"}`}>
-      <a className="skip-link" href="#main-content">Skip to content</a>
-      <div className="grain" aria-hidden="true" />
-      <div className="progress-line" aria-hidden="true" />
-
-      <div className="intro" aria-hidden={loaded}>
-        <AtomMark />
-        <div className="intro-status"><span /> Initialising local memory</div>
-        <div className="intro-line"><i /></div>
-        <div className="intro-coordinates"><span>MATTER / 0001</span><span>ATOM OS · LOCAL</span></div>
-      </div>
+    <main ref={pageRef} className={`site ${ready ? "is-ready" : ""} ${prototypeTwo ? "prototype-two" : ""}`}>
+      <a className="skip-link" href="#content">Skip to content</a>
+      <div className="scroll-progress" aria-hidden="true" />
+      {showPreloader && <div className="preloader"><AtomMark /><span><i /> INITIALISING LOCAL MEMORY</span><b /></div>}
 
       <header className="site-header">
-        <a className="header-brand" href="#top" aria-label="Atom home"><AtomMark /></a>
-        <div className="header-status"><i /> ANDROID · OFFLINE READY</div>
-        <div className="header-actions">
-          <a className="header-download" href={APK_PATH} download>Download Android APK <span>↓</span></a>
-          <button className="menu-toggle" type="button" onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="site-menu">
-            <span>Menu</span><i /><i />
-          </button>
-        </div>
+        <a href="#top" aria-label="Atom home"><AtomMark /></a>
+        <nav aria-label="Primary navigation">
+          <a href="#experience">Experience</a><a href="#playground">Playground</a><a href="#reliability">Reliability</a>
+        </nav>
+        <div className="header-actions"><a href={APK_PATH} download>Android APK ↓</a><button type="button" onClick={() => setMenuOpen(true)}>Menu</button></div>
       </header>
 
-      <div id="site-menu" className={`menu-overlay ${menuOpen ? "is-open" : ""}`} aria-hidden={!menuOpen}>
-        <div className="menu-head"><AtomMark /><button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu">Close ×</button></div>
-        <nav aria-label="Main navigation">
-          {[
-            ["01", "Experience", "#experience"],
-            ["02", "How it works", "#how-it-works"],
-            ["03", "Privacy", "#privacy"],
-            ["04", "Get Atom", "#download"],
-          ].map(([number, label, href]) => (
-            <a href={href} key={href} onClick={() => setMenuOpen(false)}><small>{`//${number}`}</small><span>{label}</span><b>↘</b></a>
-          ))}
+      <div className={`menu-overlay ${menuOpen ? "open" : ""}`} aria-hidden={!menuOpen}>
+        <div className="menu-head"><AtomMark /><button type="button" onClick={() => setMenuOpen(false)}>Close ×</button></div>
+        <nav aria-label="Mobile navigation">
+          {["Experience", "Playground", "Why Atom", "Reliability", "Install", "FAQ"].map((label) => {
+            const target = label.toLowerCase().replace(" ", "-");
+            return <a key={label} href={`#${target}`} onClick={() => setMenuOpen(false)}><span>{label}</span><b>↘</b></a>;
+          })}
         </nav>
-        <div className="menu-foot"><span>Personal reminder intelligence</span><span>Android now · iOS coming soon</span></div>
       </div>
 
-      <section id="top" className="hero" aria-labelledby="hero-title">
-        <div className="hero-orbit orbit-one" aria-hidden="true" />
-        <div className="hero-orbit orbit-two" aria-hidden="true" />
-        <div className="hero-copy" id="main-content">
-          <div className="eyebrow"><i /> PERSONAL REMINDER INTELLIGENCE</div>
-          <h1 id="hero-title" aria-label="Nothing important slips through.">
-            <span>Nothing</span><span>important</span><span className="accent-line">slips through.</span>
-          </h1>
-          <p>Speak naturally. Atom captures the detail, keeps it on your phone, and brings it back at exactly the right moment.</p>
-          <div className="hero-cta-row"><DownloadButton /><span className="ios-status"><i /> iOS coming soon</span></div>
-          <div className="apk-meta">Android APK · v0.3.0 · Android 8+ · 18.3 MB</div>
-        </div>
+      <div className="phone-narrative">
+        <aside className="phone-column" aria-label="Atom interface demonstration">
+          <div className="phone-sticky">
+            <div className="ambient-wave" aria-hidden="true">{Array.from({ length: 28 }).map((_, index) => <i key={index} style={{ "--bar": `${0.2 + (index * 17 % 75) / 100}` } as CSSProperties} />)}</div>
+            <PhoneMockup screen={phoneScreen} productUI={prototypeTwo} />
+            <div className="media-status"><i /> {prototypeTwo ? "BASED ON THE ANDROID BUILD" : "PRODUCT UI PROTOTYPE"} <span>{prototypeTwo ? "LIVE UI STUDY" : "REAL CAPTURE ASSET PENDING"}</span></div>
+          </div>
+        </aside>
 
-        <div className="hero-visual">
-          <AtomUniverse />
-          <PhoneMockup hero />
-          <div className="floating-note note-local"><i /> Stored locally<br /><span>Not in a cloud account</span></div>
-          <div className="floating-note note-voice"><strong>“Remind me…”</strong><span>Natural language ready</span></div>
-          <div className="webgl-label"><i /> LIVE MATTER FIELD <span>MOVE TO DISTURB</span></div>
-        </div>
+        <div className="narrative-column" id="content">
+          <section id="top" className="hero">
+            <div className="eyebrow"><i /> VOICE-FIRST · OFFLINE-FIRST</div>
+            <h1 aria-label="Nothing important slips through.">
+              <span className="line-mask"><b>Nothing</b></span>
+              <span className="line-mask"><b>important</b></span>
+              <span className="line-mask accent"><b>slips through.</b></span>
+            </h1>
+            <p>Say the reminder as it comes to you. Atom understands the detail, stores it on your phone and uses Android alarms to bring it back on time.</p>
+            <div className="hero-actions"><DownloadButton /><span><i /> iOS coming soon</span></div>
+            <small className="apk-meta">Android APK · v0.3.0 · Version code 3 · Android 8+ · 18.3 MB</small>
+          </section>
 
-        <div className="hero-meta meta-left"><span>VOICE FIRST · PRIVATE BY DESIGN</span><b>ASIA / CALCUTTA · DETECTED</b></div>
-        <div className="hero-meta meta-right"><span>SCROLL TO FOLLOW THE THOUGHT</span><b>01 / 05</b></div>
-      </section>
-
-      <section className="statement" aria-label="Atom promise">
-        <div className="statement-top"><span>{"// THE PROMISE"}</span><span>CAPTURE → UNDERSTAND → DELIVER</span></div>
-        <p><span>Say it once.</span> <em>Atom remembers.</em></p>
-        <InteractiveAtom />
-      </section>
-
-      <section id="experience" className="experience-section">
-        <header className="section-intro">
-          <div><span>{"// 01"}</span><span>THE EXPERIENCE</span></div>
-          <h2>From a passing thought<br />to a reliable reminder.</h2>
-          <p>One calm flow, designed around how you already speak.</p>
-        </header>
-
-        <div className="story-layout">
-          <div className="story-device"><AtomField /><PhoneMockup screen={activeStory} /><div className="story-index">0{activeStory + 1} / 03</div></div>
-          <div className="story-copy">
-            {story.map((item, index) => (
-              <article className={`story-card ${activeStory === index ? "is-active" : ""}`} data-story={index} key={item.index}>
-                <div className="story-rule"><span>{item.index}</span><i /></div>
-                <div className="eyebrow"><i /> {item.label}</div>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-                <small>{item.foot} <b>↘</b></small>
+          <section id="experience" className="experience">
+            <header className="section-heading" data-reveal>
+              <span>THE EXPERIENCE</span><h2>One thought.<br />Three clear states.</h2>
+            </header>
+            {experienceSteps.map((step, index) => (
+              <article key={step.index} className={`experience-step ${phoneScreen === index ? "active" : ""}`} data-step={index}>
+                <div className="step-index"><span>{step.index}</span><i /></div>
+                <small>{step.label}</small><h3>{step.title}</h3><p>{step.body}</p><StatePreview screen={index} />
               </article>
             ))}
-          </div>
+          </section>
         </div>
-      </section>
+      </div>
 
-      <section id="how-it-works" className="command-lab">
-        <div className="lab-grid" aria-hidden="true" />
-        <header>
-          <div className="eyebrow"><i /> TRY THE THOUGHT ENGINE</div>
-          <h2>Talk to Atom<br /><em>like a person.</em></h2>
-          <p>Tap a phrase. Watch Atom separate intent from timing without sending your reminder away.</p>
+      <section id="playground" className="playground-section">
+        <header className="section-heading light" data-reveal>
+          <span>LIVE PLAYGROUND</span><h2>Write it once.<br />Watch Atom take it apart.</h2><p>This prototype parser runs entirely in your browser. Try a sentence with—or without—a time.</p>
         </header>
+        <ParserPlayground />
+      </section>
 
-        <div className="lab-stage">
-          <div className="command-list" role="group" aria-label="Example reminder commands">
-            {commands.map((command, index) => (
-              <button className={commandIndex === index ? "active" : ""} key={command.prompt} type="button" onClick={() => setCommandIndex(index)}>
-                <small>0{index + 1}</small><span>{command.prompt}</span><b>↗</b>
-              </button>
-            ))}
-          </div>
-
-          <div className="parse-card motion-card" key={activeCommand.prompt} onPointerMove={tiltCard} onPointerLeave={resetCard}>
-            <div className="parse-head"><span><i /> PROCESSING LOCALLY</span><b>ATOM / NLP</b></div>
-            <div className="waveform" aria-hidden="true">{Array.from({ length: 34 }).map((_, index) => <i key={index} style={{ "--bar": `${18 + ((index * 17) % 60)}%` } as CssVars} />)}</div>
-            <blockquote>“{activeCommand.prompt}”</blockquote>
-            <div className="parse-result">
-              <small>ATOM UNDERSTOOD</small>
-              <h3>{activeCommand.title}</h3>
-              <div><span>{activeCommand.when}</span><span>{activeCommand.meta}</span></div>
-            </div>
-            <div className="parse-foot"><span>Intent</span><i /><span>Time</span><i /><span>Ready</span><b>✓</b></div>
-          </div>
+      <section id="why-atom" className="why-section">
+        <header className="section-heading" data-reveal><span>WHY ATOM</span><h2>Quietly capable.<br />Deliberately local.</h2></header>
+        <div className="why-grid">
+          <article data-reveal><small>DELIVERY</small><h3>An alarm, not another feed item.</h3><p>Native Android scheduling is the product—not an afterthought.</p><b>ALARM MANAGER · EXACT WHEN ALLOWED</b></article>
+          <article data-reveal><small>ACTIONS</small><h3>Change the plan in one sentence.</h3><p>Reschedule, cancel, snooze, complete or remind again.</p><div className="action-chips"><span>Reschedule</span><span>Snooze</span><span>Complete</span></div></article>
+          <article data-reveal><small>PRIVACY</small><h3>The reminder stays on this device.</h3><p>No account. No reminder sync. No server-side reminder database.</p><b>LOCAL STORAGE · BACKUP DISABLED</b></article>
+          <article data-reveal><small>LANGUAGE</small><h3>Plain words in. Structured intent out.</h3><p>A fast rule-based flow handles everyday reminder language without network latency.</p><b>TASK · DATE · TIME · RECURRENCE</b></article>
         </div>
       </section>
 
-      <section className="memory-tunnel" aria-label="How Atom carries a reminder from thought to alarm">
-        <div className="tunnel-sticky">
-          <div className="tunnel-copy">
-            <div className="eyebrow"><i /> FROM THOUGHT TO SIGNAL</div>
-            <h2>One sentence.<br /><em>Three precise states.</em></h2>
-            <p>The experience changes shape as Atom understands, stores and delivers the moment.</p>
-          </div>
-          <div className="tunnel-scene" aria-hidden="true">
-            <div className="tunnel-rings">{Array.from({ length: 8 }).map((_, index) => <i key={index} style={{ "--ring-index": index } as CssVars} />)}</div>
-            <div className="tunnel-core"><span /><b /></div>
-            <div className="memory-packet packet-one"><small>01</small><strong>VOICE</strong><span>Captured locally</span></div>
-            <div className="memory-packet packet-two"><small>02</small><strong>INTENT</strong><span>Time understood</span></div>
-            <div className="memory-packet packet-three"><small>03</small><strong>ALARM</strong><span>Android delivers</span></div>
-          </div>
+      <section id="reliability" className="reliability-section">
+        <header className="reliability-head" data-reveal><span>RELIABILITY NOTES</span><h2>Why the alarm<br />actually fires.</h2><p>This is the factual part. Android gives reminder apps several ways to fail; Atom checks the important ones explicitly.</p></header>
+        <div className="reliability-table" data-reveal>
+          <div className="table-row"><code>SCHEDULE_EXACT_ALARM</code><strong>Precise timing</strong><p>On Android 12+, Atom asks for exact-alarm access. If it is unavailable, Atom falls back to an idle-safe but inexact alarm.</p></div>
+          <div className="table-row"><code>DOZE MODE</code><strong>Idle-safe scheduling</strong><p>Atom uses <em>setExactAndAllowWhileIdle</em> when exact access is granted, so the system may wake for the reminder while idle.</p></div>
+          <div className="table-row"><code>BOOT + TIME CHANGES</code><strong>Schedule reconciliation</strong><p>After reboot, app update, clock, timezone or locale changes, Atom rebuilds the alarm schedule from local reminders.</p></div>
+          <div className="table-row"><code>FULL-SCREEN ALARM</code><strong>Visible when urgent</strong><p>Alarm mode can request full-screen access where Android requires it. Normal reminders still use standard notifications.</p></div>
+        </div>
+
+        <div className="reliability-split">
+          <div className="oem-block" data-reveal><span>OEM BATTERY SETTINGS</span><h3>One setting worth checking.</h3><p>On Xiaomi/MIUI, Realme, Oppo, Vivo and some Samsung phones:</p><ol><li>Open Settings → Apps → Atom.</li><li>Open Battery or Battery usage.</li><li>Choose Unrestricted / Allow background activity.</li></ol><small>Menu labels vary by Android version and manufacturer.</small></div>
+          <div className="permission-block" data-reveal><span>PERMISSION DISCLOSURE</span><div><strong>Microphone</strong><p>Used only when you choose voice capture.</p></div><div><strong>Notifications + alarms</strong><p>Used to deliver reminders at the scheduled time.</p></div><div><strong>Wake + boot events</strong><p>Used to fire and restore local schedules.</p></div><div className="not-requested"><strong>Not requested</strong><p>Location, contacts, photos, files or a cloud login.</p></div></div>
         </div>
       </section>
 
-      <section className="reliability-section">
-        <header className="section-intro compact-intro">
-          <div><span>{"// 02"}</span><span>WHY ATOM</span></div>
-          <h2>Quietly capable.<br />Seriously dependable.</h2>
-        </header>
-
-        <div className="bento-grid">
-          <article className="bento-card bento-wide reliable-card motion-card" onPointerMove={tiltCard} onPointerLeave={resetCard}>
-            <div className="card-number">01 / DELIVERY</div>
-            <h3>Not just a notification.<br /><em>A reminder that rings.</em></h3>
-            <p>Atom is built around Android alarms and notifications so important moments do not disappear into an endless feed.</p>
-            <div className="delivery-viz" aria-hidden="true"><span>CAPTURE</span><i /><span>SCHEDULE</span><i /><span>RING</span><b>✓</b></div>
-          </article>
-
-          <article className="bento-card action-card motion-card" onPointerMove={tiltCard} onPointerLeave={resetCard}>
-            <div className="card-number">02 / ACTIONS</div>
-            <h3>Change the plan<br />without opening a form.</h3>
-            <div className="action-stack"><span>Reschedule ↗</span><span>Snooze +10m</span><span>Remind again</span><span>Complete ✓</span></div>
-          </article>
-
-          <article id="privacy" className="bento-card privacy-card motion-card" onPointerMove={tiltCard} onPointerLeave={resetCard}>
-            <div className="card-number">03 / PRIVACY</div>
-            <div className="privacy-score"><strong>100</strong><span>%<br />LOCAL</span></div>
-            <h3>Your reminders stay<br />on your phone.</h3>
-            <p>Offline-first by design. Your personal reminder list does not need a cloud account to exist.</p>
-            <div className="local-chip"><i /> LOCAL MEMORY ACTIVE</div>
-          </article>
-
-          <article className="bento-card bento-wide language-card motion-card" onPointerMove={tiltCard} onPointerLeave={resetCard}>
-            <div className="card-number">04 / LANGUAGE</div>
-            <div className="kinetic-copy" aria-label="Create. Reschedule. Cancel. Snooze. Complete.">
-              <span>Create.</span><span>Reschedule.</span><span>Cancel.</span><span>Snooze.</span><span>Complete.</span>
-            </div>
-            <p>One natural-language layer across the whole reminder lifecycle.</p>
-          </article>
+      <section id="install" className="install-section">
+        <header className="section-heading" data-reveal><span>INSTALL ATOM</span><h2>Know what you’re<br />putting on your phone.</h2><p>The Android APK is small, versioned and fingerprinted so you can verify the file before installing it.</p></header>
+        <div className="install-grid">
+          <div className="apk-card" data-reveal><AtomMark /><div className="apk-title"><small>OFFICIAL ANDROID APK</small><strong>Atom v0.3.0</strong></div><dl><div><dt>FILE</dt><dd>atom.v3.apk</dd></div><div><dt>SIZE</dt><dd>18.3 MB</dd></div><div><dt>MINIMUM</dt><dd>Android 8.0 · API 26</dd></div><div><dt>PACKAGE</dt><dd>com.dhiren.atom</dd></div></dl><div className="checksum"><span>SHA-256</span><code>{APK_SHA}</code><button type="button" onClick={copyChecksum}>{copied ? "Copied" : "Copy"}</button></div><DownloadButton large /><a className="source-link" href="https://github.com/dhirendravsingh/atom-website" target="_blank" rel="noreferrer">View website source on GitHub ↗</a></div>
+          <div className="install-steps" data-reveal><span>THREE STEPS</span><ol><li><b>01</b><div><strong>Download the Android APK</strong><p>Use the button on this page. Android may ask you to confirm the download.</p></div></li><li><b>02</b><div><strong>Allow this installation</strong><p>If prompted, permit your browser to install this one APK. You can turn the permission off again afterwards.</p></div></li><li><b>03</b><div><strong>Open Atom and review access</strong><p>Atom explains microphone, notification and exact-alarm access before it needs them.</p></div></li></ol><div className="ios-note"><i /> iOS is planned. No iOS download is offered yet.</div></div>
         </div>
       </section>
 
-      <section className="privacy-manifesto">
-        <div className="manifesto-orb" aria-hidden="true"><AtomField /></div>
-        <div className="manifesto-meta"><span>{"// 03 · OFFLINE FIRST"}</span><span>NO ACCOUNT REQUIRED</span></div>
-        <h2>Your reminders.<br /><em>Your phone.</em></h2>
-        <p>Atom’s job is to remember for you—not to turn your life into someone else’s dataset.</p>
-        <div className="privacy-points"><span><i /> Stored locally</span><span><i /> Works offline</span><span><i /> No cloud account</span></div>
+      <section id="faq" className="faq-section">
+        <header data-reveal><span>FAQ</span><h2>Before you<br />install.</h2></header>
+        <div className="faq-list">{faqItems.map((item, index) => <FaqItem key={item.question} index={index} {...item} />)}</div>
       </section>
 
-      <section className="faq-section">
-        <div className="faq-heading"><span>{"// 04 · THE DETAILS"}</span><h2>Before you<br />install.</h2></div>
-        <div className="faq-list">
-          <details><summary><span>01</span> What can I say to Atom?<b>+</b></summary><p>Create, reschedule, cancel, snooze, complete and repeat reminders in natural language. If a critical detail is missing, Atom asks instead of guessing.</p></details>
-          <details><summary><span>02</span> Does Atom need the internet?<b>+</b></summary><p>Your reminders are stored locally and the experience is designed offline-first. Android handles the alarms and notifications used for delivery.</p></details>
-          <details><summary><span>03</span> Which devices are supported?<b>+</b></summary><p>The current Android APK supports Android 8.0 and later. An iOS version is planned and will be offered when it is genuinely ready.</p></details>
-          <details><summary><span>04</span> Is the Android APK the official download?<b>+</b></summary><p>Yes. Every download on this site points to Atom’s current official Android APK, version 0.3.0.</p></details>
-        </div>
-      </section>
-
-      <section id="download" className="download-section">
-        <div className="download-rings" aria-hidden="true"><i /><i /><i /><b /></div>
-        <div className="download-meta"><span>{"// 05 · GET ATOM"}</span><span>ANDROID · VERSION 0.1.0</span></div>
-        <h2>Make space<br />in your head.</h2>
-        <p>Let Atom hold the detail until you need it.</p>
-        <div className="download-actions"><DownloadButton className="large" /><span className="ios-card"><b>iOS</b><i /> Coming soon</span></div>
-        <div className="apk-meta center">Android APK · v0.3.0 · Android 8+ · 18.3 MB</div>
-      </section>
-
-      <footer>
-        <a href="#top" aria-label="Back to top"><AtomMark /></a>
-        <div><span>Private reminder intelligence.</span><span>Voice-first. Offline-first. Android-first.</span></div>
-        <a href="#top">Back to top ↑</a>
-        <small>© 2026 ATOM · BUILT TO REMEMBER</small>
-      </footer>
+      <footer><a href="#top"><AtomMark /></a><p>Voice-first reminders that stay on your Android phone.</p><a href="#top">Back to top ↑</a><small>© 2026 ATOM · ANDROID APK v0.3.0 · VERSION CODE 3</small></footer>
+      {prototypeTwo && <a className="mobile-download-dock" href={APK_PATH} download><span><small>GET ATOM</small>Download Android APK</span><b>↓</b></a>}
     </main>
   );
+}
+
+export default function Home() {
+  return <MarketingSite />;
 }
