@@ -10,8 +10,8 @@ import {
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from "react";
 import SplashCursor from "./components/SplashCursor";
 
-const APK_PATH = "/atom.v3.apk";
-const APK_SHA = "947db631b06dddbf69f3c67ab0134b0cc7671483668a37f6d1e6701fa0a19e25";
+const APK_PATH = "/atom.v.04.apk";
+const APK_SHA = "c694887a76ffe004d5d660c0d3f37ca6fa1f198721c4c7d13dc7ffb7a243b013";
 
 type ParseKind = "task" | "date" | "time" | "recurrence";
 
@@ -217,6 +217,48 @@ function MicGlyph() {
   return <span className="mic-glyph" aria-hidden="true"><i /></span>;
 }
 
+type ParticleHeadingLine = {
+  text: string;
+  accent?: boolean;
+};
+
+function ParticleHeading({
+  level = 2,
+  lines,
+  className = "",
+}: {
+  level?: 1 | 2;
+  lines: ParticleHeadingLine[];
+  className?: string;
+}) {
+  const HeadingTag: "h1" | "h2" = level === 1 ? "h1" : "h2";
+  const sparkCount = level === 1 ? 28 : 18;
+
+  return (
+    <HeadingTag
+      className={`particle-heading ${className}`.trim()}
+      data-particle-heading
+      aria-label={lines.map((line) => line.text).join(" ")}
+    >
+      {lines.map((line) => (
+        <span className={`line-mask ${line.accent ? "accent" : ""}`.trim()} key={line.text}>
+          <b>{line.text}</b>
+        </span>
+      ))}
+      <span className="headline-particle-sparks" aria-hidden="true">
+        {Array.from({ length: sparkCount }).map((_, index) => <i key={index} style={{
+          "--spark-x": `${4 + (index * 37) % 92}%`,
+          "--spark-y": `${6 + (index * 23) % 88}%`,
+          "--spark-dx": `${-52 + (index * 29) % 104}px`,
+          "--spark-dy": `${-38 + (index * 31) % 76}px`,
+          "--spark-delay": `${(index % 9) * 55}ms`,
+          "--spark-size": `${2 + index % 5}px`,
+        } as CSSProperties} />)}
+      </span>
+    </HeadingTag>
+  );
+}
+
 function ProductPhonePanels() {
   return (
     <>
@@ -310,7 +352,7 @@ function PhoneMockup({ screen, productUI = false }: { screen: number; productUI?
               </section>
             </>}
           </div>
-          <nav className="phone-nav"><span className={productUI && screen === 0 ? "active" : ""}><i>⌂</i>Today</span><span className={productUI && screen === 2 ? "active" : ""}><i>☷</i>Reminders</span><b>+</b><span><i>⚙</i>Settings</span></nav>
+          <nav className="phone-nav"><span className={productUI && screen === 0 ? "active" : ""}><i>⌂</i>Today</span><span className="phone-nav-add" aria-label="Add reminder"><b>+</b></span><span className={productUI && screen === 2 ? "active" : ""}><i>☷</i>Reminders</span></nav>
         </div>
       </div>
     </div>
@@ -523,6 +565,13 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
     }, { threshold: 0.2 });
     document.querySelectorAll("[data-reveal]").forEach((element) => revealObserver.observe(element));
 
+    const particleHeadingObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        entry.target.classList.toggle("is-particle-visible", entry.isIntersecting);
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll("[data-particle-heading]").forEach((element) => particleHeadingObserver.observe(element));
+
     const steps = Array.from(document.querySelectorAll<HTMLElement>("[data-step]"));
     let scrollFrame = 0;
     const onScroll = () => {
@@ -556,6 +605,7 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
     onScroll();
     return () => {
       revealObserver.disconnect();
+      particleHeadingObserver.disconnect();
       window.cancelAnimationFrame(scrollFrame);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
@@ -624,29 +674,19 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
         <div className="narrative-column" id="content">
           <section id="top" className="hero">
             <div className="eyebrow"><i /> VOICE-FIRST · OFFLINE-FIRST</div>
-            <h1 className="text-motion-particle" aria-label="Nothing important slips through.">
-              <span className="line-mask"><b>Nothing</b></span>
-              <span className="line-mask"><b>important</b></span>
-              <span className="line-mask accent"><b>slips through.</b></span>
-              <span className="headline-particle-sparks" aria-hidden="true">
-                {Array.from({ length: 28 }).map((_, index) => <i key={index} style={{
-                  "--spark-x": `${4 + (index * 37) % 92}%`,
-                  "--spark-y": `${6 + (index * 23) % 88}%`,
-                  "--spark-dx": `${-52 + (index * 29) % 104}px`,
-                  "--spark-dy": `${-38 + (index * 31) % 76}px`,
-                  "--spark-delay": `${(index % 9) * 55}ms`,
-                  "--spark-size": `${2 + index % 5}px`,
-                } as CSSProperties} />)}
-              </span>
-            </h1>
+            <ParticleHeading level={1} lines={[
+              { text: "Nothing" },
+              { text: "important" },
+              { text: "slips through.", accent: true },
+            ]} />
             <p>Say the reminder as it comes to you. Atom understands the detail, stores it on your phone and uses Android alarms to bring it back on time.</p>
             <div className="hero-actions"><DownloadButton /><span><i /> iOS coming soon</span></div>
-            <small className="apk-meta">Android APK · v0.3.0 · Version code 3 · Android 8+ · 18.3 MB</small>
+            <small className="apk-meta">Android APK · v0.4.0 · Version code 4 · Android 8+ · 18.2 MB</small>
           </section>
 
           <section id="experience" className="experience">
             <header className="section-heading" data-reveal>
-              <span>THE EXPERIENCE</span><h2>One thought.<br />Three clear states.</h2>
+              <span>THE EXPERIENCE</span><ParticleHeading lines={[{ text: "One thought." }, { text: "Three clear states." }]} />
             </header>
             {visibleExperienceSteps.map((step, index) => (
               <article key={step.index} className={`experience-step ${phoneScreen === index ? "active" : ""}`} data-step={index}>
@@ -660,13 +700,13 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
 
       <section id="playground" className="playground-section">
         <header className="section-heading light" data-reveal>
-          <span>LIVE PLAYGROUND</span><h2>Write it once.<br />Watch Atom take it apart.</h2><p>This prototype parser runs entirely in your browser. Try a sentence with—or without—a time.</p>
+          <span>LIVE PLAYGROUND</span><ParticleHeading lines={[{ text: "Write it once." }, { text: "Watch Atom take it apart." }]} /><p>This prototype parser runs entirely in your browser. Try a sentence with—or without—a time.</p>
         </header>
         <ParserPlayground />
       </section>
 
       <section id="why-atom" className="why-section">
-        <header className="section-heading" data-reveal><span>WHY ATOM</span><h2>Quietly capable.<br />Deliberately local.</h2></header>
+        <header className="section-heading" data-reveal><span>WHY ATOM</span><ParticleHeading lines={[{ text: "Quietly capable." }, { text: "Deliberately local." }]} /></header>
         <div className="why-grid">
           <article data-reveal><small>DELIVERY</small><h3>An alarm, not another feed item.</h3><p>Native Android scheduling is the product—not an afterthought.</p><b>ALARM MANAGER · EXACT WHEN ALLOWED</b></article>
           <article data-reveal><small>ACTIONS</small><h3>Change the plan in one sentence.</h3><p>Reschedule, cancel, snooze, complete or remind again.</p><div className="action-chips"><span>Reschedule</span><span>Snooze</span><span>Complete</span></div></article>
@@ -676,7 +716,7 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
       </section>
 
       <section id="reliability" className="reliability-section">
-        <header className="reliability-head" data-reveal><span>RELIABILITY NOTES</span><h2>Why the alarm<br />actually fires.</h2><p>This is the factual part. Android gives reminder apps several ways to fail; Atom checks the important ones explicitly.</p></header>
+        <header className="reliability-head" data-reveal><span>RELIABILITY NOTES</span><ParticleHeading lines={[{ text: "Why the alarm" }, { text: "actually fires." }]} /><p>This is the factual part. Android gives reminder apps several ways to fail; Atom checks the important ones explicitly.</p></header>
         <div className="reliability-table" data-reveal>
           <div className="table-row"><code>SCHEDULE_EXACT_ALARM</code><strong>Precise timing</strong><p>On Android 12+, Atom asks for exact-alarm access. If it is unavailable, Atom falls back to an idle-safe but inexact alarm.</p></div>
           <div className="table-row"><code>DOZE MODE</code><strong>Idle-safe scheduling</strong><p>Atom uses <em>setExactAndAllowWhileIdle</em> when exact access is granted, so the system may wake for the reminder while idle.</p></div>
@@ -691,19 +731,19 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
       </section>
 
       <section id="install" className="install-section">
-        <header className="section-heading" data-reveal><span>INSTALL ATOM</span><h2>Know what you’re<br />putting on your phone.</h2><p>The Android APK is small, versioned and fingerprinted so you can verify the file before installing it.</p></header>
+        <header className="section-heading" data-reveal><span>INSTALL ATOM</span><ParticleHeading lines={[{ text: "Know what you’re" }, { text: "putting on your phone." }]} /><p>The Android APK is small, versioned and fingerprinted so you can verify the file before installing it.</p></header>
         <div className="install-grid">
-          <div className="apk-card" data-reveal><AtomMark /><div className="apk-title"><small>OFFICIAL ANDROID APK</small><strong>Atom v0.3.0</strong></div><dl><div><dt>FILE</dt><dd>atom.v3.apk</dd></div><div><dt>SIZE</dt><dd>18.3 MB</dd></div><div><dt>MINIMUM</dt><dd>Android 8.0 · API 26</dd></div><div><dt>PACKAGE</dt><dd>com.dhiren.atom</dd></div></dl><div className="checksum"><span>SHA-256</span><code>{APK_SHA}</code><button type="button" onClick={copyChecksum}>{copied ? "Copied" : "Copy"}</button></div><DownloadButton large /><a className="source-link" href="https://github.com/dhirendravsingh/atom-website" target="_blank" rel="noreferrer">View website source on GitHub ↗</a></div>
+          <div className="apk-card" data-reveal><AtomMark /><div className="apk-title"><small>OFFICIAL ANDROID APK</small><strong>Atom v0.4.0</strong></div><dl><div><dt>FILE</dt><dd>atom.v.04.apk</dd></div><div><dt>SIZE</dt><dd>18.2 MB</dd></div><div><dt>MINIMUM</dt><dd>Android 8.0 · API 26</dd></div><div><dt>PACKAGE</dt><dd>com.dhiren.atom</dd></div></dl><div className="checksum"><span>SHA-256</span><code>{APK_SHA}</code><button type="button" onClick={copyChecksum}>{copied ? "Copied" : "Copy"}</button></div><DownloadButton large /><a className="source-link" href="https://github.com/dhirendravsingh/atom-website" target="_blank" rel="noreferrer">View website source on GitHub ↗</a></div>
           <div className="install-steps" data-reveal><span>THREE STEPS</span><ol><li><b>01</b><div><strong>Download the Android APK</strong><p>Use the button on this page. Android may ask you to confirm the download.</p></div></li><li><b>02</b><div><strong>Allow this installation</strong><p>If prompted, permit your browser to install this one APK. You can turn the permission off again afterwards.</p></div></li><li><b>03</b><div><strong>Open Atom and review access</strong><p>Atom explains microphone, notification and exact-alarm access before it needs them.</p></div></li></ol><div className="ios-note"><i /> iOS is planned. No iOS download is offered yet.</div></div>
         </div>
       </section>
 
       <section id="faq" className="faq-section">
-        <header data-reveal><span>FAQ</span><h2>Before you<br />install.</h2></header>
+        <header data-reveal><span>FAQ</span><ParticleHeading lines={[{ text: "Before you" }, { text: "install." }]} /></header>
         <div className="faq-list">{faqItems.map((item, index) => <FaqItem key={item.question} index={index} {...item} />)}</div>
       </section>
 
-      <footer><a href="#top"><AtomMark /></a><p>Voice-first reminders that stay on your Android phone.</p><a href="#top">Back to top ↑</a><small>© 2026 ATOM · ANDROID APK v0.3.0 · VERSION CODE 3</small></footer>
+      <footer><a href="#top"><AtomMark /></a><p>Voice-first reminders that stay on your Android phone.</p><a href="#top">Back to top ↑</a><small>© 2026 ATOM · ANDROID APK v0.4.0 · VERSION CODE 4</small></footer>
       {prototypeTwo && <a className="mobile-download-dock" href={APK_PATH} download><span><small>GET ATOM</small>Download Android APK</span><b>↓</b></a>}
     </main>
   );
