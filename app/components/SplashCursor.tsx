@@ -85,7 +85,7 @@ export default function SplashCursor({
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    if (reducedMotion || coarsePointer) return;
+    if (reducedMotion) return;
 
     const listenerController = new AbortController();
     let animationFrame = 0;
@@ -94,17 +94,17 @@ export default function SplashCursor({
     const pointers: Pointer[] = [pointerPrototype()];
 
     const config = {
-      SIM_RESOLUTION: SIM_RESOLUTION!,
-      DYE_RESOLUTION: DYE_RESOLUTION!,
+      SIM_RESOLUTION: coarsePointer ? Math.min(SIM_RESOLUTION!, 64) : SIM_RESOLUTION!,
+      DYE_RESOLUTION: coarsePointer ? Math.min(DYE_RESOLUTION!, 512) : DYE_RESOLUTION!,
       CAPTURE_RESOLUTION: CAPTURE_RESOLUTION!,
       DENSITY_DISSIPATION: DENSITY_DISSIPATION!,
       VELOCITY_DISSIPATION: VELOCITY_DISSIPATION!,
       PRESSURE: PRESSURE!,
-      PRESSURE_ITERATIONS: PRESSURE_ITERATIONS!,
+      PRESSURE_ITERATIONS: coarsePointer ? Math.min(PRESSURE_ITERATIONS!, 10) : PRESSURE_ITERATIONS!,
       CURL: CURL!,
       SPLAT_RADIUS: SPLAT_RADIUS!,
       SPLAT_FORCE: SPLAT_FORCE!,
-      SHADING,
+      SHADING: coarsePointer ? false : SHADING,
       COLOR_UPDATE_SPEED: COLOR_UPDATE_SPEED!,
       PAUSED: false,
       BACK_COLOR,
@@ -866,7 +866,7 @@ export default function SplashCursor({
     }
 
     function scaleByPixelRatio(input: number) {
-      const pixelRatio = window.devicePixelRatio || 1;
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, coarsePointer ? 1.5 : 2);
       return Math.floor(input * pixelRatio);
     }
 
