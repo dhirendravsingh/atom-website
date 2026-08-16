@@ -487,8 +487,6 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
   const [showPreloader, setShowPreloader] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phoneScreen, setPhoneScreen] = useState(0);
-  const [textMotion, setTextMotion] = useState<"line" | "particle">("line");
-  const [textMotionRun, setTextMotionRun] = useState(0);
   const [copied, setCopied] = useState(false);
   const pageRef = useRef<HTMLElement>(null);
   const visibleExperienceSteps = prototypeTwo ? productExperienceSteps : experienceSteps;
@@ -575,11 +573,6 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
     window.setTimeout(() => setCopied(false), 1600);
   };
 
-  const chooseTextMotion = (motion: "line" | "particle") => {
-    setTextMotion(motion);
-    setTextMotionRun((run) => run + 1);
-  };
-
   return (
     <main ref={pageRef} className={`site ${ready ? "is-ready" : ""} ${prototypeTwo ? "prototype-two" : ""}`}>
       <a className="skip-link" href="#content">Skip to content</a>
@@ -631,11 +624,11 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
         <div className="narrative-column" id="content">
           <section id="top" className="hero">
             <div className="eyebrow"><i /> VOICE-FIRST · OFFLINE-FIRST</div>
-            <h1 key={`${textMotion}-${textMotionRun}`} className={`text-motion-${textMotion}`} aria-label="Nothing important slips through.">
+            <h1 className="text-motion-particle" aria-label="Nothing important slips through.">
               <span className="line-mask"><b>Nothing</b></span>
               <span className="line-mask"><b>important</b></span>
               <span className="line-mask accent"><b>slips through.</b></span>
-              {prototypeTwo && textMotion === "particle" && <span className="headline-particle-sparks" aria-hidden="true">
+              <span className="headline-particle-sparks" aria-hidden="true">
                 {Array.from({ length: 28 }).map((_, index) => <i key={index} style={{
                   "--spark-x": `${4 + (index * 37) % 92}%`,
                   "--spark-y": `${6 + (index * 23) % 88}%`,
@@ -644,16 +637,11 @@ export function MarketingSite({ prototypeTwo = false }: { prototypeTwo?: boolean
                   "--spark-delay": `${(index % 9) * 55}ms`,
                   "--spark-size": `${2 + index % 5}px`,
                 } as CSSProperties} />)}
-              </span>}
+              </span>
             </h1>
             <p>Say the reminder as it comes to you. Atom understands the detail, stores it on your phone and uses Android alarms to bring it back on time.</p>
             <div className="hero-actions"><DownloadButton /><span><i /> iOS coming soon</span></div>
             <small className="apk-meta">Android APK · v0.3.0 · Version code 3 · Android 8+ · 18.3 MB</small>
-            {prototypeTwo && <div className="text-motion-switch" aria-label="Compare headline animations">
-              <span>TEXT MOTION</span>
-              <button className={textMotion === "line" ? "active" : ""} type="button" aria-pressed={textMotion === "line"} onClick={() => chooseTextMotion("line")}>A&nbsp; Line reveal</button>
-              <button className={textMotion === "particle" ? "active" : ""} type="button" aria-pressed={textMotion === "particle"} onClick={() => chooseTextMotion("particle")}>B&nbsp; Particle assembly</button>
-            </div>}
           </section>
 
           <section id="experience" className="experience">
